@@ -33,10 +33,22 @@
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
+#define BUFF_SIZE 200
+#define SEND_TIME 10000
+
 void led_blinking_task(void);
+void sendTask(void);
+void sendToServer();
 
 extern void cdc_task(void);
 extern void hid_app_task(void);
+
+char buffer[BUFF_SIZE];
+uint8_t _index = 0;
+unsigned long send_timer = 0;
+unsigned long extraTime = 0;
+bool sendUrgent = false;
+
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -52,6 +64,7 @@ int main(void)
     // tinyusb host task
     tuh_task();
     led_blinking_task();
+    sendTask();
   }
 
   return 0;
@@ -66,7 +79,7 @@ CFG_TUSB_MEM_SECTION static char serial_in_buffer[64] = { 0 };
 void tuh_mount_cb(uint8_t dev_addr)
 {
   // application set-up
-  printf("A device with address %d is mounted\r\n", dev_addr);
+  // printf("A device with address %d is mounted\r\n", dev_addr);
 
   tuh_cdc_receive(dev_addr, serial_in_buffer, sizeof(serial_in_buffer), true); // schedule first transfer
 }
@@ -74,7 +87,7 @@ void tuh_mount_cb(uint8_t dev_addr)
 void tuh_umount_cb(uint8_t dev_addr)
 {
   // application tear-down
-  printf("A device with address %d is unmounted \r\n", dev_addr);
+  // printf("A device with address %d is unmounted \r\n", dev_addr);
 }
 
 // invoked ISR context
@@ -96,11 +109,6 @@ void cdc_task(void)
 }
 
 #endif
-
-//--------------------------------------------------------------------+
-// TinyUSB Callbacks
-//--------------------------------------------------------------------+
-
 //--------------------------------------------------------------------+
 // Blinking Task
 //--------------------------------------------------------------------+
@@ -117,4 +125,59 @@ void led_blinking_task(void)
 
   board_led_write(led_state);
   led_state = 1 - led_state; // toggle
+}
+
+//--------------------------------------------------------------------+
+// Send Task
+//--------------------------------------------------------------------+
+void sendTask() {
+  if( send_timer == 0 ) send_timer = board_millis();
+  if(sendUrgent) {
+    sendToServer();
+    send_timer = 0;
+    sendUrgent = false;
+  }
+  // If there's nothing in buffer, dont send
+  if( _index <= 0) {
+    send_timer = 0;
+    return;
+  }
+  // If enough time passed, send the buffer and reset
+  if( board_millis() > (send_timer + SEND_TIME + extraTime)) {
+    printf("Time passed!\r\n");
+    printf("Buffer: %s\r\n", buffer);
+    // buffer should end with '|', if not, give it another second
+    if (buffer[_index - 1] =! '|') {
+      printf("Extra time!\r\n");
+      extraTime = 100;
+      return;
+    } else extraTime = 0;
+    sendToServer();
+    send_timer = 0;
+  }
+  // If we already filled the buffer, send it and reset
+}
+
+//--------------------------------------------------------------------+
+// Send to Arduino
+//--------------------------------------------------------------------+
+void sendToServer() {
+  printf("Sending: %s\r\n", buffer);
+  _index = 0;
+}
+
+void fillBuffer(char c) {
+  // If an \n arrived, copy temp buffer to buffer
+  if(c == '\r') {
+    buffer[_index] =  '|';
+    _index++;
+    return;
+  }
+  // Avoid overfilling the buffer
+  if (_index > BUFF_SIZE - 1) {
+    // debug("Buffer is full!");
+    return;
+  }
+  buffer[_index] =  c;
+  _index++;
 }
