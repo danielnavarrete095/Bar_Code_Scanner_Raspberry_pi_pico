@@ -161,8 +161,10 @@ static void process_kbd_report(hid_keyboard_report_t const *report)
         // not existed in previous report means the current key is pressed
         bool const is_shift = report->modifier & (KEYBOARD_MODIFIER_LEFTSHIFT | KEYBOARD_MODIFIER_RIGHTSHIFT);
         uint8_t ch = keycode2ascii[report->keycode[i]][is_shift ? 1 : 0];
-        putchar(ch);
-        if ( ch == '\r' ) putchar('\n'); // added new line for enter key
+        debug_ch(ch);
+        // putchar(ch);
+        if ( ch == '\r' ) //putchar('\n'); // added new line for enter key
+          debug_ch('\n');
         fillBuffer(ch);
 
         fflush(stdout); // flush right away, else nanolib will wait for newline

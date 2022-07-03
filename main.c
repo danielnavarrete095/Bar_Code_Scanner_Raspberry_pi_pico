@@ -33,6 +33,7 @@
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
+#define DEBUG
 #define BUFF_SIZE 200
 #define SEND_TIME 10000
 
@@ -144,11 +145,11 @@ void sendTask() {
   }
   // If enough time passed, send the buffer and reset
   if( board_millis() > (send_timer + SEND_TIME + extraTime)) {
-    printf("Time passed!\r\n");
-    printf("Buffer: %s\r\n", buffer);
+    debug("Time passed!");
+    debug_msg("Buffer", buffer);
     // buffer should end with '|', if not, give it another second
     if (buffer[_index - 1] =! '|') {
-      printf("Extra time!\r\n");
+      debug("Extra time!");
       extraTime = 100;
       return;
     } else extraTime = 0;
@@ -162,7 +163,8 @@ void sendTask() {
 // Send to Arduino
 //--------------------------------------------------------------------+
 void sendToServer() {
-  printf("Sending: %s\r\n", buffer);
+  debug_msg("Sending", buffer);
+  // printf("%s\n", buffer);
   _index = 0;
 }
 
@@ -181,3 +183,26 @@ void fillBuffer(char c) {
   buffer[_index] =  c;
   _index++;
 }
+
+
+#ifdef DEBUG
+void debug_msg(const char *message, const char *value) {
+  printf("%s: %s\n", message, value);
+}
+void debug(const char *message) {
+  printf("%s\n", message);
+}
+void debug_ch(const char c) {
+  putchar(c);
+}
+#else
+void debug_msg(const char *message, const char *value) {
+  return;
+}
+void debug(const char *message) {
+  return;
+}
+void debug_ch(const char c) {
+  return;
+}
+#endif
