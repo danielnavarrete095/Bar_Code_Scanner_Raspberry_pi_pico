@@ -34,12 +34,17 @@
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
 #define DEBUG
-#define BUFF_SIZE 200
+#define BUFF_SIZE 300
 #define SEND_TIME 10000
 
 void led_blinking_task(void);
 void sendTask(void);
 void sendToServer();
+void cleanBuffer();
+
+void debug_msg(const char *message, const char *value);
+void debug(const char *message);
+void debug_ch(const char c);
 
 extern void cdc_task(void);
 extern void hid_app_task(void);
@@ -49,14 +54,16 @@ uint8_t _index = 0;
 unsigned long send_timer = 0;
 unsigned long extraTime = 0;
 bool sendUrgent = false;
+bool connectedAlert = false;
+bool disconnectedAlert = false;
 
 
 /*------------- MAIN -------------*/
 int main(void)
 {
   board_init();
-
-  printf("TinyUSB Host CDC MSC HID Example\r\n");
+  // sleep_ms(12000);
+  // debug("TinyUSB Host CDC MSC HID Example");
 
   tusb_init();
 
@@ -133,6 +140,15 @@ void led_blinking_task(void)
 //--------------------------------------------------------------------+
 void sendTask() {
   if( send_timer == 0 ) send_timer = board_millis();
+  if(connectedAlert) {
+    strcpy(buffer, "Scanner Connected");
+    sendUrgent = true;
+    connectedAlert = false;
+  } else if(disconnectedAlert) {
+    strcpy(buffer, "Scanner Disconnected");
+    sendUrgent = true;
+    disconnectedAlert = false;
+  }
   if(sendUrgent) {
     sendToServer();
     send_timer = 0;
@@ -145,11 +161,11 @@ void sendTask() {
   }
   // If enough time passed, send the buffer and reset
   if( board_millis() > (send_timer + SEND_TIME + extraTime)) {
-    debug("Time passed!");
-    debug_msg("Buffer", buffer);
+    // debug("Time passed!");
+    // debug_msg("Buffer", buffer);
     // buffer should end with '|', if not, give it another second
     if (buffer[_index - 1] =! '|') {
-      debug("Extra time!");
+      // debug("Extra time!");
       extraTime = 100;
       return;
     } else extraTime = 0;
@@ -163,9 +179,12 @@ void sendTask() {
 // Send to Arduino
 //--------------------------------------------------------------------+
 void sendToServer() {
+#ifdef DEBUG
   debug_msg("Sending", buffer);
-  // printf("%s\n", buffer);
-  _index = 0;
+#else
+  printf("%s\n", buffer);
+#endif
+  cleanBuffer();
 }
 
 void fillBuffer(char c) {
@@ -180,10 +199,17 @@ void fillBuffer(char c) {
     // debug("Buffer is full!");
     return;
   }
-  buffer[_index] =  c;
+  buffer[_index] = c;
   _index++;
 }
 
+void cleanBuffer() {
+  // Set buffer to 0
+  memset(buffer, '\0', BUFF_SIZE);
+  // index starts at the end of IMEI = 16
+  _index = 0;
+  debug_msg("Debug", "Cleaning buffer");
+}
 
 #ifdef DEBUG
 void debug_msg(const char *message, const char *value) {
