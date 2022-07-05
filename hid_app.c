@@ -68,28 +68,38 @@ void hid_app_task(void)
 // therefore report_desc = NULL, desc_len = 0
 void tuh_hid_mount_cb(uint8_t dev_addr, uint8_t instance, uint8_t const* desc_report, uint16_t desc_len)
 {
-  // printf("HID device address = %d, instance = %d is mounted\r\n", dev_addr, instance);
+  char message[100];
+  sprintf(message, "HID device address = %d, instance = %d is mounted", dev_addr, instance);
+  debug(message);
   // Interface protocol (hid_interface_protocol_enum_t)
   const char* protocol_str[] = { "None", "Keyboard", "Mouse" };
   uint8_t const itf_protocol = tuh_hid_interface_protocol(dev_addr, instance);
 
-  // printf("HID Interface Protocol = %s\r\n", protocol_str[itf_protocol]);
-    debug_msg("Debug", "Scanner Connected");
-    connectedAlert = true;
+  sprintf(message, "HID Interface Protocol = %s\r\n", protocol_str[itf_protocol]);
+  debug(message);
+  connectedAlert = true;
 
   // By default host stack will use activate boot protocol on supported interface.
   // Therefore for this simple example, we only need to parse generic report descriptor (with built-in parser)
   if ( itf_protocol == HID_ITF_PROTOCOL_NONE )
   {
     hid_info[instance].report_count = tuh_hid_parse_report_descriptor(hid_info[instance].report_info, MAX_REPORT, desc_report, desc_len);
-    // printf("HID has %u reports \r\n", hid_info[instance].report_count);
+    sprintf(message, "HID has %u reports", hid_info[instance].report_count);
+    debug(message);
   }
 
   // request to receive report
   // tuh_hid_report_received_cb() will be invoked when report is available
+  // uint8_t retries = 5;
+  // while (!tuh_hid_receive_report(dev_addr, instance) && retries > 0) {
+  //   debug("Error: cannot request to receive report");
+  //   sleep_ms(1000);
+  //   retries--;
+  // }
   if ( !tuh_hid_receive_report(dev_addr, instance) )
   {
-    // printf("Error: cannot request to receive report\r\n");
+    // TODO: This happens after the scanner is disconnected and connected again
+    debug("Error: cannot request to receive report\r\n");
   }
 }
 
@@ -127,7 +137,7 @@ void tuh_hid_report_received_cb(uint8_t dev_addr, uint8_t instance, uint8_t cons
   // continue to request to receive report
   if ( !tuh_hid_receive_report(dev_addr, instance) )
   {
-    // printf("Error: cannot request to receive report\r\n");
+    debug("Error: cannot request to receive report");
   }
 }
 
@@ -163,8 +173,10 @@ static void process_kbd_report(hid_keyboard_report_t const *report)
         // not existed in previous report means the current key is pressed
         bool const is_shift = report->modifier & (KEYBOARD_MODIFIER_LEFTSHIFT | KEYBOARD_MODIFIER_RIGHTSHIFT);
         uint8_t ch = keycode2ascii[report->keycode[i]][is_shift ? 1 : 0];
-        debug_ch(ch);
         // // putchar(ch);
+        if ( ch == '\r' ) debug("CR");
+        else if ( ch == '\n' )debug("NL");
+        else debug_ch(ch);
         // if ( ch == '\r' ) //putchar('\n'); // added new line for enter key
         //   debug_ch('\n');
         fillBuffer(ch);
