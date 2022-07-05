@@ -29,6 +29,7 @@
 
 #include "bsp/board.h"
 #include "tusb.h"
+#include "hardware/watchdog.h"
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
@@ -67,12 +68,21 @@ int main(void)
 
   tusb_init();
 
+  if (watchdog_caused_reboot()) {
+      printf("Rasp Rebooted by Watchdog!\n");
+      return 0;
+  } else {
+      printf("Rasp Clean boot\n");
+  }
+  watchdog_enable(8000, 1);
+
   while (1)
   {
     // tinyusb host task
     tuh_task();
     led_blinking_task();
     sendTask();
+    watchdog_update();
   }
 
   return 0;
