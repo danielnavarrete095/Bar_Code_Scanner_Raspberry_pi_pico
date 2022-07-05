@@ -34,8 +34,9 @@
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
-#define DEBUG
-#define BUFF_SIZE 300
+// #define DEBUG
+// TODO: Create several buffers
+#define BUFF_SIZE 500
 #define SEND_TIME 10000
 
 void led_blinking_task(void);
@@ -57,6 +58,7 @@ unsigned long extraTime = 0;
 bool sendUrgent = false;
 bool connectedAlert = false;
 bool disconnectedAlert = false;
+bool reset = false;
 
 
 /*------------- MAIN -------------*/
@@ -70,11 +72,10 @@ int main(void)
 
   if (watchdog_caused_reboot()) {
       printf("Rasp Rebooted by Watchdog!\n");
-      return 0;
   } else {
       printf("Rasp Clean boot\n");
   }
-  watchdog_enable(8000, 1);
+  watchdog_enable(3000, 1);
 
   while (1)
   {
@@ -82,7 +83,7 @@ int main(void)
     tuh_task();
     led_blinking_task();
     sendTask();
-    watchdog_update();
+    if(!reset) watchdog_update();
   }
 
   return 0;
@@ -158,6 +159,7 @@ void sendTask() {
     strcpy(buffer, "Scanner Disconnected");
     sendUrgent = true;
     disconnectedAlert = false;
+    reset = true;
   }
   if(sendUrgent) {
     sendToServer();
@@ -206,7 +208,7 @@ void fillBuffer(char c) {
   }
   // Avoid overfilling the buffer
   if (_index > BUFF_SIZE - 1) {
-    // debug("Buffer is full!");
+    debug("Buffer is full!");
     return;
   }
   buffer[_index] = c;
