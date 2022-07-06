@@ -36,7 +36,7 @@
 //--------------------------------------------------------------------+
 // #define DEBUG
 // TODO: Create several buffers
-#define BUFF_SIZE 500
+#define BUFF_SIZE 300
 #define SEND_TIME 10000
 
 void led_blinking_task(void);
@@ -52,7 +52,7 @@ extern void cdc_task(void);
 extern void hid_app_task(void);
 
 char buffer[BUFF_SIZE];
-uint8_t _index = 0;
+uint16_t _index = 0;
 unsigned long send_timer = 0;
 unsigned long extraTime = 0;
 bool sendUrgent = false;
@@ -65,15 +65,17 @@ bool reset = false;
 int main(void)
 {
   board_init();
-  // sleep_ms(12000);
   // debug("TinyUSB Host CDC MSC HID Example");
 
   tusb_init();
 
   if (watchdog_caused_reboot()) {
-      printf("Rasp Rebooted by Watchdog!\n");
+      // printf("Rasp Rebooted by Watchdog!\n");
   } else {
-      printf("Rasp Clean boot\n");
+      sleep_ms(13000);
+      // printf("Rasp Clean boot\n");
+      strcpy(buffer, "Device turned on");
+      sendUrgent = true;
   }
   watchdog_enable(3000, 1);
 
@@ -165,6 +167,7 @@ void sendTask() {
     sendToServer();
     send_timer = 0;
     sendUrgent = false;
+    return;
   }
   // If there's nothing in buffer, dont send
   if( _index <= 0) {
@@ -176,8 +179,8 @@ void sendTask() {
     // debug("Time passed!");
     // debug_msg("Buffer", buffer);
     // buffer should end with '|', if not, give it another second
-    if (buffer[_index - 1] =! '|') {
-      // debug("Extra time!");
+    if (buffer[_index - 1] != '|') {
+      debug("Extra time!");
       extraTime = 100;
       return;
     } else extraTime = 0;
