@@ -72,7 +72,7 @@ int main(void)
   if (watchdog_caused_reboot()) {
       // printf("Rasp Rebooted by Watchdog!\n");
   } else {
-      sleep_ms(13000);
+      sleep_ms(15000);
       // printf("Rasp Clean boot\n");
       strcpy(buffer, "Device turned on");
       sendUrgent = true;
