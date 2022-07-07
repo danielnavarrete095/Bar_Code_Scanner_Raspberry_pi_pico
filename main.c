@@ -31,6 +31,9 @@
 #include "tusb.h"
 #include "hardware/watchdog.h"
 
+#include "pico/stdlib.h"
+#include "hardware/uart.h"
+
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
@@ -39,10 +42,19 @@
 #define BUFF_SIZE 300
 #define SEND_TIME 10000
 
+#define UART_0 uart0
+#define UART_1 uart1
+#define BAUD_RATE 115200
+#define UART0_TX_PIN 0
+#define UART0_RX_PIN 1
+#define UART1_TX_PIN 4
+#define UART1_RX_PIN 5
+
 void led_blinking_task(void);
 void sendTask(void);
 void sendToServer();
 void cleanBuffer();
+void uartTask();
 
 void debug_msg(const char *message, const char *value);
 void debug(const char *message);
@@ -66,6 +78,17 @@ int main(void)
 {
   board_init();
   // debug("TinyUSB Host CDC MSC HID Example");
+  // Set up our UART with the required speed.
+  uart_init(uart0, BAUD_RATE);
+  uart_init(uart1, BAUD_RATE);
+  // Set the TX and RX pins by using the function select on the GPIO
+  // Set datasheet for more information on function select
+  gpio_set_function(UART0_TX_PIN, GPIO_FUNC_UART);
+  gpio_set_function(UART0_RX_PIN, GPIO_FUNC_UART);
+  // Set the TX and RX pins by using the function select on the GPIO
+  // Set datasheet for more information on function select
+  gpio_set_function(UART1_TX_PIN, GPIO_FUNC_UART);
+  gpio_set_function(UART1_RX_PIN, GPIO_FUNC_UART);
 
   tusb_init();
 
@@ -85,6 +108,7 @@ int main(void)
     tuh_task();
     led_blinking_task();
     sendTask();
+    uartTask();
     if(!reset) watchdog_update();
   }
 
@@ -154,11 +178,11 @@ void led_blinking_task(void)
 void sendTask() {
   if( send_timer == 0 ) send_timer = board_millis();
   if(connectedAlert) {
-    strcpy(buffer, "Scanner Connected");
+    strcpy(&buffer[_index], "Scanner Connected");
     sendUrgent = true;
     connectedAlert = false;
   } else if(disconnectedAlert) {
-    strcpy(buffer, "Scanner Disconnected");
+    strcpy(&buffer[_index], "Scanner Disconnected");
     sendUrgent = true;
     disconnectedAlert = false;
     reset = true;
@@ -224,6 +248,28 @@ void cleanBuffer() {
   // index starts at the end of IMEI = 16
   _index = 0;
   debug_msg("Debug", "Cleaning buffer");
+}
+
+//--------------------------------------------------------------------+
+// UART Task
+//--------------------------------------------------------------------+
+void uartTask() {
+  // const uint32_t interval = 1000;
+  // static uint32_t start = 0;
+
+  // // Blink every interval ms
+  // if ( board_millis() - start < interval) return; // not enough time
+  // start += interval;
+
+  // Check for Serial input every second
+  while(uart_is_readable(uart0)) {
+      char c = uart_getc(uart0);
+      uart_putc(uart0, c);
+  }
+  while(uart_is_readable(uart1)) {
+      char c = uart_getc(uart1);
+      uart_putc(uart1, c);
+  }
 }
 
 #ifdef DEBUG
